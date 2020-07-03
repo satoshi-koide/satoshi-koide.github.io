@@ -6,7 +6,7 @@ A researcher at Toyota Central R&D Labs.
 
 ## Research Interest
 
-Spatial Databases, Data Structures, Machine Learning, Similarity Search
+Spatial Databases, String Algorithms, Data Structures, Machine Learning, Similarity Search
 
 ## Recent Publication
 
