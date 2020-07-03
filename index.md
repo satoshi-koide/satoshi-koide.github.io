@@ -23,7 +23,7 @@ Please see also: <a href="https://scholar.google.co.jp/citations?user=mDde7DoAAA
 - Keisuke Otaki, <u>Satoshi Koide</u>, Ayano Okoso, Tomoki Nishi, Cooperative Routing with Heterogeneous Vehicles, **AAMAS**, 2019 (extended abstract)
 - Keisuke Kawano, <u>Satoshi Koide</u>, Chie Imamura, Seq2seq Fingerprint with Byte-Pair Encoding for Predicting Changes in Protein Stability upon Single Point Mutation, **IEEE/ACM Transactions on Computational Biology and Bioinformatics**, 2019
 - Robert Waury, Christian S. Jensen, <u>Satoshi Koide</u>, Yoshiharu Ishikawa, Chuan Xiao, Indexing Trajectories for Travel-Time Histogram Retrieval, **EDBT**, 2019
-- <u>Satoshi Koide</u>, Yukihiro Tadokoro, Takayoshi Yoshimura, Chuan Xiao, Yoshiharu Ishikawa, Enhanced Indexing and Querying of Trajectories in Road Networks via String Algorithms, ACM Transactions on Spatial Algorithms and Systems (TSAS), 2018
+- <u>Satoshi Koide</u>, Yukihiro Tadokoro, Takayoshi Yoshimura, Chuan Xiao, Yoshiharu Ishikawa, Enhanced Indexing and Querying of Trajectories in Road Networks via String Algorithms, ACM Transactions on Spatial Algorithms and Systems (**ACM TSAS***), 2018
 - Shun Taguchi, <u>Satoshi Koide</u>, Takayoshi Yoshimura, Online Map Matching with Route Prediction, **IEEE Trans. ITS**, 2018
 - <u>Satoshi Koide</u>, Keisuke Kawano, Takuro Kutsuna, Neural Edit Operations for Biological Sequences, **Neural Information Processing Systems**, 2018
 - <u>Satoshi Koide</u>, Yukihiro Tadokoro, Chuan Xiao, Yoshiharu Ishikawa, CiNCT: Compression and retrieval for massive vehicular trajectories via relative movement labeling, **ICDE**, 2018
@@ -32,8 +32,8 @@ Please see also: <a href="https://scholar.google.co.jp/citations?user=mDde7DoAAA
 
 ### (Refereed, Domestic (in Japanese))
 
-- 大社，大滝，小出，西, 相乗りのための将来需要を考慮した経路最適化, 情報処理学会論文誌, 2020
-- 小出，肖，石川, 道路ネットワーク上の軌跡データに対する圧縮索引, 電子情報通信学会論文誌 D, 2020
+- 大社，大滝，小出，西, 相乗りのための将来需要を考慮した経路最適化, **情報処理学会論文誌**, 2020
+- 小出，肖，石川, 道路ネットワーク上の軌跡データに対する圧縮索引, **電子情報通信学会論文誌 D**, 2020
 
 
 ## Awards
