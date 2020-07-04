@@ -8,7 +8,7 @@ A researcher at Toyota Central R&D Labs.
 
 Spatial Databases, String Algorithms, Data Structures, Machine Learning, Similarity Search
 
-## Recent Publication
+## Publication
 
 Please see also: <a href="https://scholar.google.co.jp/citations?user=mDde7DoAAAAJ&hl=ja">Google Scholar</a> / <a href="https://dblp.org/pers/k/Koide:Satoshi.html">dblp</a>
 
