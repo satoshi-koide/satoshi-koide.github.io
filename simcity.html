@@ -1,0 +1,1674 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SimCity風ゲーム</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            background-color: #2c3e50;
+            color: white;
+        }
+        
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+        
+        .sidebar {
+            width: 200px;
+            background-color: #34495e;
+            padding: 20px;
+            border-right: 2px solid #1a252f;
+        }
+        
+        .building-button {
+            width: 100%;
+            padding: 10px;
+            margin: 5px 0;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .building-button:hover {
+            background-color: #2980b9;
+        }
+        
+        .building-button.active {
+            background-color: #e74c3c;
+        }
+        
+        .game-area {
+            flex: 1;
+            position: relative;
+            overflow-y: auto;
+            height: 100vh;
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(40, 20px);
+            grid-template-rows: repeat(30, 20px);
+            gap: 1px;
+            padding: 20px;
+            background-color: #27ae60;
+            overflow: auto;
+            max-height: calc(100vh - 40px);
+        }
+        
+        .cell {
+            width: 20px;
+            height: 20px;
+            background-color: #2ecc71;
+            border: 1px solid #27ae60;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+        }
+        
+        .cell:hover {
+            background-color: #58d68d;
+        }
+        
+        .cell.residential {
+            background-color: #f39c12;
+        }
+        
+        .cell.commercial {
+            background-color: #9b59b6;
+        }
+        
+        .cell.road {
+            background-color: #7f8c8d;
+        }
+        
+        .cell.rail {
+            background-color: #34495e;
+        }
+        
+        .cell.highway {
+            background-color: #2c3e50;
+        }
+        
+        .cell.crossing {
+            background-color: #e67e22;
+        }
+        
+        h1 {
+            margin: 0 0 20px 0;
+            font-size: 18px;
+        }
+        
+        h2 {
+            margin: 20px 0 10px 0;
+            font-size: 16px;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        
+        .modal-content {
+            background-color: #34495e;
+            margin: 15% auto;
+            padding: 20px;
+            border-radius: 10px;
+            width: 400px;
+            color: white;
+        }
+        
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        
+        .close:hover {
+            color: white;
+        }
+        
+        .save-slot {
+            background-color: #2c3e50;
+            margin: 10px 0;
+            padding: 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            border: 2px solid #34495e;
+        }
+        
+        .save-slot:hover {
+            border-color: #3498db;
+        }
+        
+        .save-slot.occupied {
+            border-color: #27ae60;
+        }
+        
+        .slot-info {
+            font-size: 12px;
+            color: #bdc3c7;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <h1>SimCity風ゲーム</h1>
+            
+            <div style="background-color: #27ae60; padding: 15px; border-radius: 5px; margin-bottom: 15px;">
+                <h3 style="margin: 0 0 10px 0; font-size: 14px;">💰 税収情報</h3>
+                <div style="font-size: 16px; font-weight: bold;">¥<span id="taxRevenue">0</span>/月</div>
+                <div style="font-size: 12px; margin-top: 5px;">建物数: <span id="buildingCount">0</span></div>
+                <div style="font-size: 12px;">高速道路: <span id="highwayCount">0</span>/20</div>
+                <div style="font-size: 12px;">踏切: <span id="crossingCount">0</span>/10</div>
+                <div style="font-size: 12px;">交通網: <span id="clusterCount">0</span>クラスター</div>
+            </div>
+            
+            
+            <h2>建物</h2>
+            <button class="building-button" onclick="selectBuilding('residential')">住宅 🏠</button>
+            <button class="building-button" onclick="selectBuilding('commercial')">商業施設 🏢</button>
+            
+            <h2>インフラ</h2>
+            <button class="building-button" onclick="selectBuilding('road')">道路 🛣️</button>
+            <button class="building-button" onclick="selectBuilding('highway')">高速道路 🛤️</button>
+            <button class="building-button" onclick="selectBuilding('rail')">鉄道 🚂</button>
+            <button class="building-button" onclick="selectBuilding('crossing')">踏切 ⚡</button>
+            
+            <h2>操作</h2>
+            <button class="building-button" onclick="clearSelection()" style="background-color: #e74c3c;">選択解除</button>
+            
+            <h2>セーブ/ロード</h2>
+            <button class="building-button" onclick="showSaveDialog()" style="background-color: #27ae60;">セーブ 💾</button>
+            <button class="building-button" onclick="showLoadDialog()" style="background-color: #f39c12;">ロード 📁</button>
+            
+            <h2>自動プレイ</h2>
+            <button id="autoPlayBtn" class="building-button" onclick="toggleAutoPlay()" style="background-color: #8e44ad;">自動プレイ開始 🤖</button>
+            <div style="font-size: 12px; margin-top: 5px;">反復回数: <span id="iterationCount">0</span>/50000</div>
+            <div style="font-size: 12px;">温度: <span id="temperature">100</span></div>
+        </div>
+        
+        <div class="game-area">
+            <div class="grid" id="gameGrid">
+            </div>
+            
+            <div style="background-color: #34495e; margin: 20px; padding: 20px; border-radius: 10px;">
+                <h3 style="margin: 0 0 15px 0; font-size: 18px; color: white;">📈 税収推移グラフ</h3>
+                <canvas id="taxChart" width="800" height="300" style="background-color: #2c3e50; border-radius: 5px; border: 1px solid #1a252f;"></canvas>
+            </div>
+            
+            <div style="background-color: #34495e; margin: 20px; padding: 20px; border-radius: 10px;">
+                <h3 style="margin: 0 0 15px 0; font-size: 18px; color: white;">🏠 建物数推移グラフ</h3>
+                <canvas id="buildingChart" width="800" height="300" style="background-color: #2c3e50; border-radius: 5px; border: 1px solid #1a252f;"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Save Modal -->
+    <div id="saveModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeSaveDialog()">&times;</span>
+            <h3>都市をセーブ</h3>
+            <div id="saveSlots"></div>
+        </div>
+    </div>
+    
+    <!-- Load Modal -->
+    <div id="loadModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeLoadDialog()">&times;</span>
+            <h3>都市をロード</h3>
+            <div id="loadSlots"></div>
+        </div>
+    </div>
+
+    <script>
+        let selectedBuilding = null;
+        let grid = [];
+        let totalTaxRevenue = 0;
+        let buildingCount = 0;
+        let highwayCount = 0;
+        let crossingCount = 0;
+        let autoPlayActive = false;
+        let autoPlayInterval = null;
+        let iterationCount = 0;
+        let taxHistory = [];
+        let buildingHistory = [];
+        const GRID_WIDTH = 40;
+        const GRID_HEIGHT = 30;
+        const MAX_HIGHWAYS = 20;
+        const MAX_CROSSINGS = 10;
+        const MAX_ITERATIONS = 50000;
+        const INITIAL_TEMPERATURE = 100;
+        const FINAL_TEMPERATURE = 10;
+        
+        const buildingTypes = ['residential', 'commercial', 'road', 'highway', 'rail', 'crossing', null];
+        
+        const baseTaxRates = {
+            residential: 150,
+            commercial: 50
+        };
+        
+        const maintenanceCosts = {
+            road: 50,
+            highway: 80,
+            rail: 50,
+            crossing: 80
+        };
+        
+        const accessRanges = {
+            road: 10,
+            highway: 15,
+            rail: 20,
+            crossing: 25
+        };
+        
+        const movementCosts = {
+            road: 1.0,
+            highway: 0.5,    // 高速道路は早い
+            rail: 0.3,       // 鉄道はもっと早い
+            crossing: 0.2,   // 踏切は最も効率的
+            residential: 1.0,
+            commercial: 1.0
+        };
+
+        function initializeGrid() {
+            const gameGrid = document.getElementById('gameGrid');
+            
+            for (let y = 0; y < GRID_HEIGHT; y++) {
+                grid[y] = [];
+                for (let x = 0; x < GRID_WIDTH; x++) {
+                    grid[y][x] = null;
+                    
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.dataset.x = x;
+                    cell.dataset.y = y;
+                    cell.onclick = () => placeBuilding(x, y);
+                    
+                    gameGrid.appendChild(cell);
+                }
+            }
+        }
+
+        function selectBuilding(buildingType) {
+            selectedBuilding = buildingType;
+            
+            document.querySelectorAll('.building-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            event.target.classList.add('active');
+        }
+
+        function clearSelection() {
+            selectedBuilding = null;
+            document.querySelectorAll('.building-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+        }
+
+        function placeBuilding(x, y) {
+            if (!selectedBuilding) return;
+            
+            if (selectedBuilding === 'highway' && highwayCount >= MAX_HIGHWAYS) {
+                alert('高速道路は最大20マスまでしか建設できません！');
+                return;
+            }
+            
+            if (selectedBuilding === 'crossing' && crossingCount >= MAX_CROSSINGS) {
+                alert('踏切は最大10マスまでしか建設できません！');
+                return;
+            }
+            
+            const cell = document.querySelector(`[data-x="${x}"][data-y="${y}"]`);
+            
+            if (grid[y][x] === 'highway') {
+                highwayCount--;
+            }
+            if (grid[y][x] === 'crossing') {
+                crossingCount--;
+            }
+            
+            grid[y][x] = selectedBuilding;
+            cell.className = `cell ${selectedBuilding}`;
+            
+            if (selectedBuilding === 'highway') {
+                highwayCount++;
+            }
+            if (selectedBuilding === 'crossing') {
+                crossingCount++;
+            }
+            
+            const symbols = {
+                residential: '🏠',
+                commercial: '🏢',
+                road: '—',
+                rail: '═',
+                highway: '━',
+                crossing: '╬'
+            };
+            
+            cell.textContent = symbols[selectedBuilding] || '';
+            
+            calculateTaxRevenue();
+        }
+        
+        function calculateTaxRevenue() {
+            totalTaxRevenue = 0;
+            buildingCount = 0;
+            let residentialCount = 0;
+            let commercialCount = 0;
+            
+            // まず住宅と商業施設の数をカウント
+            for (let y = 0; y < GRID_HEIGHT; y++) {
+                for (let x = 0; x < GRID_WIDTH; x++) {
+                    const buildingType = grid[y][x];
+                    if (buildingType === 'residential') {
+                        residentialCount++;
+                    } else if (buildingType === 'commercial') {
+                        commercialCount++;
+                    }
+                }
+            }
+            
+            buildingCount = residentialCount + commercialCount;
+            
+            // 商業施設の供給バランス係数を計算（住宅5軒:商業1軒が理想）
+            const optimalRatio = 0.2; // 商業/住宅の理想比率（1/5）
+            const currentRatio = residentialCount > 0 ? commercialCount / residentialCount : 0;
+            let supplyBalanceFactor = 1.0;
+            
+            if (currentRatio > optimalRatio) {
+                // 過剰供給時のペナルティ
+                if (currentRatio <= 0.4) {
+                    // 比率0.2-0.4: 線形に0.8まで減少
+                    supplyBalanceFactor = 1.0 - (currentRatio - optimalRatio) * 1.0;
+                } else if (currentRatio <= 0.6) {
+                    // 比率0.4-0.6: 0.8から0.5まで減少
+                    supplyBalanceFactor = 0.8 - (currentRatio - 0.4) * 1.5;
+                } else {
+                    // 比率0.6以上: 0.3に固定
+                    supplyBalanceFactor = 0.3;
+                }
+            }
+            
+            // 交通インフラの連結性ペナルティを計算
+            const infraClusters = getInfrastructureClusters();
+            let connectivityFactor = 1.0;
+            
+            if (infraClusters > 1) {
+                // クラスター数が多いほどペナルティが大きくなる（連続的で緩やか）
+                // 係数 = 1 / (1 + 0.1 * (clusters - 1))
+                // 1クラスター: 1.0, 2クラスター: 0.91, 5クラスター: 0.71, 10クラスター: 0.53
+                connectivityFactor = 1.0 / (1.0 + 0.1 * (infraClusters - 1));
+            }
+            
+            // クラスターサイズマップを事前計算
+            const roadClusterSizes = getClusterSizeMap(['road', 'highway', 'crossing']);
+            const railClusterSizes = getClusterSizeMap(['rail', 'crossing']);
+            
+            // 税収計算と維持費計算
+            for (let y = 0; y < GRID_HEIGHT; y++) {
+                for (let x = 0; x < GRID_WIDTH; x++) {
+                    const buildingType = grid[y][x];
+                    if (buildingType === 'residential') {
+                        totalTaxRevenue += baseTaxRates.residential;
+                    } else if (buildingType === 'commercial') {
+                        let accessibleResidential = getAccessibleResidential(x, y);
+                        if (accessibleResidential > 0) {
+                            const baseTax = baseTaxRates.commercial + (accessibleResidential * 50);
+                            totalTaxRevenue += baseTax * supplyBalanceFactor * connectivityFactor;
+                        }
+                    } else if (maintenanceCosts[buildingType]) {
+                        // 維持費計算
+                        let clusterSize = 1;
+                        
+                        // 道路系の建物
+                        if (['road', 'highway'].includes(buildingType)) {
+                            clusterSize = roadClusterSizes[y][x];
+                        } 
+                        // 鉄道系の建物
+                        else if (buildingType === 'rail') {
+                            clusterSize = railClusterSizes[y][x];
+                        }
+                        // 踏切は両方のクラスターサイズの平均
+                        else if (buildingType === 'crossing') {
+                            const roadSize = roadClusterSizes[y][x];
+                            const railSize = railClusterSizes[y][x];
+                            clusterSize = (roadSize + railSize) / 2;
+                        }
+                        
+                        // 維持費割引係数計算（クラスターサイズの逆数に比例、連続的変化）
+                        // 係数 = 1/clusterSize （最小0.2で下限設定）
+                        const discountFactor = Math.max(0.2, 1.0 / clusterSize);
+                        const maintenance = maintenanceCosts[buildingType] * discountFactor;
+                        
+                        totalTaxRevenue -= maintenance;
+                    }
+                }
+            }
+            
+            updateTaxDisplay();
+        }
+        
+        function getInfrastructureClusters() {
+            // 道路系と鉄道系のクラスター数を別々に計算
+            const roadClusters = getClustersByType(['road', 'highway', 'crossing']);
+            const railClusters = getClustersByType(['rail', 'crossing']);
+            
+            // 相加平均を返す（インフラがない場合は0として扱う）
+            let totalClusters = 0;
+            let networkCount = 0;
+            
+            if (roadClusters > 0) {
+                totalClusters += roadClusters;
+                networkCount++;
+            }
+            
+            if (railClusters > 0) {
+                totalClusters += railClusters;
+                networkCount++;
+            }
+            
+            return networkCount > 0 ? totalClusters / networkCount : 0;
+        }
+        
+        function getClustersByType(allowedTypes) {
+            // 指定されたタイプのインフラのクラスター数を計算
+            const visited = Array(GRID_HEIGHT).fill().map(() => Array(GRID_WIDTH).fill(false));
+            let clusterCount = 0;
+            
+            function isAllowedInfrastructure(buildingType) {
+                return allowedTypes.includes(buildingType);
+            }
+            
+            function dfs(x, y) {
+                if (x < 0 || x >= GRID_WIDTH || y < 0 || y >= GRID_HEIGHT || 
+                    visited[y][x] || !isAllowedInfrastructure(grid[y][x])) {
+                    return;
+                }
+                
+                visited[y][x] = true;
+                
+                // 隣接する4方向を探索
+                dfs(x + 1, y);
+                dfs(x - 1, y);
+                dfs(x, y + 1);
+                dfs(x, y - 1);
+            }
+            
+            // 指定されたタイプの交通インフラセルを探索してクラスター数をカウント
+            for (let y = 0; y < GRID_HEIGHT; y++) {
+                for (let x = 0; x < GRID_WIDTH; x++) {
+                    if (isAllowedInfrastructure(grid[y][x]) && !visited[y][x]) {
+                        dfs(x, y);
+                        clusterCount++;
+                    }
+                }
+            }
+            
+            return clusterCount;
+        }
+        
+        function getClusterSizeMap(allowedTypes) {
+            // 各セルが属するクラスターのサイズを記録するマップを作成
+            const sizeMap = Array(GRID_HEIGHT).fill().map(() => Array(GRID_WIDTH).fill(0));
+            const visited = Array(GRID_HEIGHT).fill().map(() => Array(GRID_WIDTH).fill(false));
+            
+            function isAllowedInfrastructure(buildingType) {
+                return allowedTypes.includes(buildingType);
+            }
+            
+            function dfsWithSize(x, y, clusterCells) {
+                if (x < 0 || x >= GRID_WIDTH || y < 0 || y >= GRID_HEIGHT || 
+                    visited[y][x] || !isAllowedInfrastructure(grid[y][x])) {
+                    return;
+                }
+                
+                visited[y][x] = true;
+                clusterCells.push({x, y});
+                
+                // 隣接する4方向を探索
+                dfsWithSize(x + 1, y, clusterCells);
+                dfsWithSize(x - 1, y, clusterCells);
+                dfsWithSize(x, y + 1, clusterCells);
+                dfsWithSize(x, y - 1, clusterCells);
+            }
+            
+            // 各クラスターを探索してサイズを記録
+            for (let y = 0; y < GRID_HEIGHT; y++) {
+                for (let x = 0; x < GRID_WIDTH; x++) {
+                    if (isAllowedInfrastructure(grid[y][x]) && !visited[y][x]) {
+                        const clusterCells = [];
+                        dfsWithSize(x, y, clusterCells);
+                        
+                        // このクラスターの全セルにサイズを記録
+                        const clusterSize = clusterCells.length;
+                        for (const cell of clusterCells) {
+                            sizeMap[cell.y][cell.x] = clusterSize;
+                        }
+                    }
+                }
+            }
+            
+            return sizeMap;
+        }
+        
+        
+        let distanceCache = new Map();
+        let cacheValidGrid = null;
+        
+        function getAccessibleResidential(commercialX, commercialY) {
+            const maxRange = getMaxAccessRange(commercialX, commercialY);
+            
+            // インフラなし（範囲1）の場合は隣接住宅のみカウント
+            if (maxRange === 1) {
+                let accessibleCount = 0;
+                const adjacentCells = [
+                    {x: commercialX-1, y: commercialY}, {x: commercialX+1, y: commercialY},
+                    {x: commercialX, y: commercialY-1}, {x: commercialX, y: commercialY+1}
+                ];
+                
+                for (let cell of adjacentCells) {
+                    if (cell.x >= 0 && cell.x < GRID_WIDTH && cell.y >= 0 && cell.y < GRID_HEIGHT) {
+                        if (grid[cell.y][cell.x] === 'residential') {
+                            accessibleCount++;
+                        }
+                    }
+                }
+                
+                return accessibleCount;
+            }
+            
+            // インフラありの場合は従来通り経路探索
+            const distances = getDistanceMap(commercialX, commercialY, maxRange);
+            
+            let accessibleCount = 0;
+            for (let y = 0; y < GRID_HEIGHT; y++) {
+                for (let x = 0; x < GRID_WIDTH; x++) {
+                    if (grid[y][x] === 'residential' && distances[y][x] !== -1 && distances[y][x] <= maxRange) {
+                        accessibleCount++;
+                    }
+                }
+            }
+            
+            return accessibleCount;
+        }
+        
+        function getDistanceMap(startX, startY, maxRange) {
+            const cacheKey = `${startX},${startY},${maxRange}`;
+            
+            // グリッドが変更されていたらキャッシュをクリア
+            if (cacheValidGrid !== JSON.stringify(grid)) {
+                distanceCache.clear();
+                cacheValidGrid = JSON.stringify(grid);
+            }
+            
+            if (distanceCache.has(cacheKey)) {
+                return distanceCache.get(cacheKey);
+            }
+            
+            const distances = calculateDistanceMapDP(startX, startY, maxRange);
+            distanceCache.set(cacheKey, distances);
+            return distances;
+        }
+        
+        function calculateDistanceMapDP(startX, startY, maxRange) {
+            // 動的計画法で距離マップを計算
+            const distances = Array(GRID_HEIGHT).fill().map(() => Array(GRID_WIDTH).fill(-1));
+            const queue = [{x: startX, y: startY, dist: 0}];
+            distances[startY][startX] = 0;
+            
+            let queueIndex = 0;
+            while (queueIndex < queue.length) {
+                const current = queue[queueIndex++];
+                
+                if (current.dist >= maxRange) continue;
+                
+                const neighbors = [
+                    {x: current.x - 1, y: current.y},
+                    {x: current.x + 1, y: current.y},
+                    {x: current.x, y: current.y - 1},
+                    {x: current.x, y: current.y + 1}
+                ];
+                
+                for (const neighbor of neighbors) {
+                    if (neighbor.x < 0 || neighbor.x >= GRID_WIDTH || 
+                        neighbor.y < 0 || neighbor.y >= GRID_HEIGHT) continue;
+                    
+                    if (distances[neighbor.y][neighbor.x] !== -1) continue;
+                    
+                    const cellType = grid[neighbor.y][neighbor.x];
+                    if (cellType === 'road' || cellType === 'highway' || cellType === 'rail' || 
+                        cellType === 'crossing' || cellType === 'residential' || cellType === 'commercial') {
+                        
+                        const moveCost = movementCosts[cellType] || 1.0;
+                        const newDist = current.dist + moveCost;
+                        
+                        distances[neighbor.y][neighbor.x] = newDist;
+                        if (newDist < maxRange) {
+                            queue.push({x: neighbor.x, y: neighbor.y, dist: newDist});
+                        }
+                    }
+                }
+            }
+            
+            return distances;
+        }
+        
+        function getMaxAccessRange(x, y) {
+            let maxRange = 1; // インフラなしなら隣接1マスのみ
+            const adjacentCells = [
+                {x: x-1, y: y}, {x: x+1, y: y},
+                {x: x, y: y-1}, {x: x, y: y+1}
+            ];
+            
+            for (let cell of adjacentCells) {
+                if (cell.x >= 0 && cell.x < GRID_WIDTH && cell.y >= 0 && cell.y < GRID_HEIGHT) {
+                    const adjacentType = grid[cell.y][cell.x];
+                    if (accessRanges[adjacentType]) {
+                        maxRange = Math.max(maxRange, accessRanges[adjacentType]);
+                    }
+                }
+            }
+            
+            return maxRange;
+        }
+        
+        
+        function updateTaxDisplay() {
+            document.getElementById('taxRevenue').textContent = Math.round(totalTaxRevenue).toLocaleString();
+            document.getElementById('buildingCount').textContent = buildingCount;
+            document.getElementById('highwayCount').textContent = highwayCount;
+            document.getElementById('crossingCount').textContent = crossingCount;
+            document.getElementById('clusterCount').textContent = getInfrastructureClusters();
+            if (document.getElementById('iterationCount')) {
+                document.getElementById('iterationCount').textContent = iterationCount;
+            }
+            if (document.getElementById('temperature') && autoPlayActive) {
+                document.getElementById('temperature').textContent = getCurrentTemperature().toFixed(1);
+            }
+            
+            // 税収履歴を記録
+            taxHistory.push(totalTaxRevenue);
+            
+            // 建物数履歴を記録
+            const buildingCounts = {
+                residential: 0,
+                commercial: 0,
+                road: 0,
+                highway: 0,
+                rail: 0,
+                crossing: 0
+            };
+            
+            for (let y = 0; y < GRID_HEIGHT; y++) {
+                for (let x = 0; x < GRID_WIDTH; x++) {
+                    const buildingType = grid[y][x];
+                    if (buildingCounts.hasOwnProperty(buildingType)) {
+                        buildingCounts[buildingType]++;
+                    }
+                }
+            }
+            
+            buildingHistory.push(buildingCounts);
+            
+            drawTaxChart();
+            drawBuildingChart();
+        }
+        
+        function drawTaxChart() {
+            const canvas = document.getElementById('taxChart');
+            if (!canvas) return;
+            
+            const ctx = canvas.getContext('2d');
+            const width = canvas.width;
+            const height = canvas.height;
+            const padding = 60;
+            const chartWidth = width - padding * 2;
+            const chartHeight = height - padding * 2;
+            
+            // キャンバスをクリア
+            ctx.clearRect(0, 0, width, height);
+            
+            if (taxHistory.length < 1) return;
+            
+            // 最大値と最小値を取得
+            const maxRevenue = Math.max(...taxHistory);
+            const minRevenue = Math.min(...taxHistory);
+            const range = Math.max(maxRevenue - minRevenue, 1000);
+            
+            // 目盛りを描画
+            ctx.strokeStyle = '#7f8c8d';
+            ctx.lineWidth = 1;
+            ctx.font = '12px Arial';
+            ctx.fillStyle = '#bdc3c7';
+            
+            // Y軸の目盛り
+            const ySteps = 5;
+            for (let i = 0; i <= ySteps; i++) {
+                const y = padding + (i / ySteps) * chartHeight;
+                const value = maxRevenue - (i / ySteps) * range;
+                
+                ctx.beginPath();
+                ctx.moveTo(padding, y);
+                ctx.lineTo(padding + chartWidth, y);
+                ctx.stroke();
+                
+                ctx.fillText('¥' + Math.round(value).toLocaleString(), 5, y + 4);
+            }
+            
+            // X軸の目盛り
+            const xSteps = Math.min(10, Math.max(1, Math.floor(taxHistory.length / 100)));
+            const stepSize = Math.max(1, Math.floor(taxHistory.length / xSteps));
+            for (let i = 0; i <= xSteps; i++) {
+                const step = i * stepSize;
+                if (step >= taxHistory.length) break;
+                
+                const x = padding + (step / Math.max(1, taxHistory.length - 1)) * chartWidth;
+                
+                ctx.beginPath();
+                ctx.moveTo(x, padding);
+                ctx.lineTo(x, padding + chartHeight);
+                ctx.stroke();
+                
+                ctx.fillText(step.toString(), x - 10, height - 5);
+            }
+            
+            // グラフラインを描画
+            if (taxHistory.length > 1) {
+                ctx.strokeStyle = '#3498db';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                
+                for (let i = 0; i < taxHistory.length; i++) {
+                    const x = padding + (i / Math.max(1, taxHistory.length - 1)) * chartWidth;
+                    const y = padding + chartHeight - ((taxHistory[i] - minRevenue) / range) * chartHeight;
+                    
+                    if (i === 0) {
+                        ctx.moveTo(x, y);
+                    } else {
+                        ctx.lineTo(x, y);
+                    }
+                }
+                
+                ctx.stroke();
+            }
+            
+            // 現在の値を表示
+            if (taxHistory.length > 0) {
+                ctx.fillStyle = '#e74c3c';
+                ctx.beginPath();
+                const lastX = padding + ((taxHistory.length - 1) / Math.max(1, taxHistory.length - 1)) * chartWidth;
+                const lastY = padding + chartHeight - ((taxHistory[taxHistory.length - 1] - minRevenue) / range) * chartHeight;
+                ctx.arc(lastX, lastY, 5, 0, 2 * Math.PI);
+                ctx.fill();
+            }
+            
+            // 軸ラベル
+            ctx.fillStyle = '#ecf0f1';
+            ctx.font = '14px Arial';
+            ctx.fillText('ステップ数', width / 2 - 30, height - 20);
+            
+            ctx.save();
+            ctx.translate(20, height / 2);
+            ctx.rotate(-Math.PI / 2);
+            ctx.fillText('税収 (¥)', -30, 0);
+            ctx.restore();
+        }
+
+        function showSaveDialog() {
+            const modal = document.getElementById('saveModal');
+            const slotsDiv = document.getElementById('saveSlots');
+            slotsDiv.innerHTML = '';
+            
+            for (let i = 1; i <= 3; i++) {
+                const saveData = localStorage.getItem(`simcity_save_${i}`);
+                const slot = document.createElement('div');
+                slot.className = 'save-slot' + (saveData ? ' occupied' : '');
+                
+                let slotContent = `<strong>スロット ${i}</strong>`;
+                if (saveData) {
+                    const data = JSON.parse(saveData);
+                    slotContent += `<div class="slot-info">建物数: ${data.buildingCount} | 税収: ¥${data.totalTaxRevenue.toLocaleString()}/月<br>保存日時: ${data.timestamp}</div>`;
+                } else {
+                    slotContent += `<div class="slot-info">空のスロット</div>`;
+                }
+                
+                slot.innerHTML = slotContent;
+                slot.onclick = () => saveToSlot(i);
+                slotsDiv.appendChild(slot);
+            }
+            
+            modal.style.display = 'block';
+        }
+        
+        function showLoadDialog() {
+            const modal = document.getElementById('loadModal');
+            const slotsDiv = document.getElementById('loadSlots');
+            slotsDiv.innerHTML = '';
+            
+            for (let i = 1; i <= 3; i++) {
+                const saveData = localStorage.getItem(`simcity_save_${i}`);
+                const slot = document.createElement('div');
+                slot.className = 'save-slot' + (saveData ? ' occupied' : '');
+                
+                let slotContent = `<strong>スロット ${i}</strong>`;
+                if (saveData) {
+                    const data = JSON.parse(saveData);
+                    slotContent += `<div class="slot-info">建物数: ${data.buildingCount} | 税収: ¥${data.totalTaxRevenue.toLocaleString()}/月<br>保存日時: ${data.timestamp}</div>`;
+                    slot.onclick = () => loadFromSlot(i);
+                } else {
+                    slotContent += `<div class="slot-info">空のスロット</div>`;
+                    slot.style.cursor = 'not-allowed';
+                    slot.style.opacity = '0.5';
+                }
+                
+                slot.innerHTML = slotContent;
+                slotsDiv.appendChild(slot);
+            }
+            
+            modal.style.display = 'block';
+        }
+        
+        function closeSaveDialog() {
+            document.getElementById('saveModal').style.display = 'none';
+        }
+        
+        function closeLoadDialog() {
+            document.getElementById('loadModal').style.display = 'none';
+        }
+        
+        function saveToSlot(slotNumber) {
+            const saveData = {
+                grid: grid,
+                totalTaxRevenue: totalTaxRevenue,
+                buildingCount: buildingCount,
+                highwayCount: highwayCount,
+                timestamp: new Date().toLocaleString('ja-JP')
+            };
+            
+            localStorage.setItem(`simcity_save_${slotNumber}`, JSON.stringify(saveData));
+            alert(`スロット ${slotNumber} に保存しました！`);
+            closeSaveDialog();
+        }
+        
+        function loadFromSlot(slotNumber) {
+            const saveData = localStorage.getItem(`simcity_save_${slotNumber}`);
+            if (!saveData) {
+                alert('このスロットには保存データがありません。');
+                return;
+            }
+            
+            const data = JSON.parse(saveData);
+            grid = data.grid;
+            totalTaxRevenue = data.totalTaxRevenue;
+            buildingCount = data.buildingCount;
+            highwayCount = data.highwayCount;
+            
+            // グリッドを再描画
+            const gameGrid = document.getElementById('gameGrid');
+            gameGrid.innerHTML = '';
+            
+            const symbols = {
+                residential: '🏠',
+                commercial: '🏢',
+                road: '—',
+                rail: '═',
+                highway: '━',
+                crossing: '╬'
+            };
+            
+            for (let y = 0; y < GRID_HEIGHT; y++) {
+                for (let x = 0; x < GRID_WIDTH; x++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    if (grid[y][x]) {
+                        cell.className += ` ${grid[y][x]}`;
+                        cell.textContent = symbols[grid[y][x]] || '';
+                    }
+                    cell.dataset.x = x;
+                    cell.dataset.y = y;
+                    cell.onclick = () => placeBuilding(x, y);
+                    
+                    gameGrid.appendChild(cell);
+                }
+            }
+            
+            updateTaxDisplay();
+            alert(`スロット ${slotNumber} からロードしました！`);
+            closeLoadDialog();
+        }
+        
+        // モーダルの外側をクリックしたら閉じる
+        window.onclick = function(event) {
+            const saveModal = document.getElementById('saveModal');
+            const loadModal = document.getElementById('loadModal');
+            if (event.target === saveModal) {
+                closeSaveDialog();
+            }
+            if (event.target === loadModal) {
+                closeLoadDialog();
+            }
+        }
+
+        function toggleAutoPlay() {
+            if (autoPlayActive) {
+                stopAutoPlay();
+            } else {
+                startAutoPlay();
+            }
+        }
+        
+        function startAutoPlay() {
+            autoPlayActive = true;
+            iterationCount = 0;
+            document.getElementById('autoPlayBtn').textContent = '自動プレイ停止 ⏹️';
+            document.getElementById('autoPlayBtn').style.backgroundColor = '#e74c3c';
+            
+            generateInitialCity();
+            
+            autoPlayInterval = setInterval(() => {
+                if (iterationCount >= MAX_ITERATIONS) {
+                    stopAutoPlay();
+                    alert('自動プレイが完了しました！50000回反復しました。');
+                    return;
+                }
+                
+                optimizeCity();
+                iterationCount++;
+                document.getElementById('iterationCount').textContent = iterationCount;
+            }, 100);
+        }
+        
+        function stopAutoPlay() {
+            autoPlayActive = false;
+            if (autoPlayInterval) {
+                clearInterval(autoPlayInterval);
+                autoPlayInterval = null;
+            }
+            document.getElementById('autoPlayBtn').textContent = '自動プレイ開始 🤖';
+            document.getElementById('autoPlayBtn').style.backgroundColor = '#8e44ad';
+        }
+        
+        function generateInitialCity() {
+            clearGrid();
+            
+            // 連続したグリッド状の道路を配置（5マス間隔で1つのクラスター保証）
+            for (let y = 0; y < GRID_HEIGHT; y++) {
+                for (let x = 0; x < GRID_WIDTH; x++) {
+                    if (x % 5 === 0 || y % 5 === 0) {
+                        placeAutoBuilding(x, y, 'road');
+                    }
+                }
+            }
+            
+            // 全てのマスを埋める（住宅中心、商業は少なめ、道路追加は控えめ）
+            for (let y = 0; y < GRID_HEIGHT; y++) {
+                for (let x = 0; x < GRID_WIDTH; x++) {
+                    if (grid[y][x] === null) {  // 道路でない場所に
+                        let buildingType = null;
+                        
+                        if (Math.random() < 0.1) {
+                            buildingType = 'road';  // 既存道路網への追加は控えめ
+                        } else if (Math.random() < 0.15) {
+                            buildingType = 'commercial';
+                        } else {
+                            buildingType = 'residential';
+                        }
+                        
+                        placeAutoBuilding(x, y, buildingType);
+                    }
+                }
+            }
+            
+            // 都市中心部に高速道路を配置
+            const centerX = Math.floor(GRID_WIDTH / 2);
+            const centerY = Math.floor(GRID_HEIGHT / 2);
+            let highwayPlaced = 0;
+            
+            // 中心の縦横ライン
+            for (let x = 0; x < GRID_WIDTH && highwayPlaced < MAX_HIGHWAYS; x++) {
+                if (grid[centerY][x] === 'road') {
+                    placeAutoBuilding(x, centerY, 'highway');
+                    highwayPlaced++;
+                }
+            }
+            
+            for (let y = 0; y < GRID_HEIGHT && highwayPlaced < MAX_HIGHWAYS; y++) {
+                if (grid[y][centerX] === 'road') {
+                    placeAutoBuilding(centerX, y, 'highway');
+                    highwayPlaced++;
+                }
+            }
+            
+            // 中心部周辺の道路も高速道路に（中心から5マス以内）
+            for (let dy = -5; dy <= 5 && highwayPlaced < MAX_HIGHWAYS; dy++) {
+                for (let dx = -5; dx <= 5 && highwayPlaced < MAX_HIGHWAYS; dx++) {
+                    const x = centerX + dx;
+                    const y = centerY + dy;
+                    if (x >= 0 && x < GRID_WIDTH && y >= 0 && y < GRID_HEIGHT) {
+                        if (grid[y][x] === 'road' && (x % 5 === 0 || y % 5 === 0)) {
+                            placeAutoBuilding(x, y, 'highway');
+                            highwayPlaced++;
+                        }
+                    }
+                }
+            }
+            
+            // 一本の鉄道線を配置（縦の主要路線）
+            const railLineX = Math.floor(GRID_WIDTH / 4); // 左側1/4の位置
+            for (let y = 0; y < GRID_HEIGHT; y++) {
+                if (y % 5 === 0) {
+                    // 道路との交差点は踏切に
+                    placeAutoBuilding(railLineX, y, 'crossing');
+                } else {
+                    // それ以外は鉄道
+                    placeAutoBuilding(railLineX, y, 'rail');
+                }
+            }
+            
+            // 横の支線鉄道を追加（中央付近）
+            const branchRailY = Math.floor(GRID_HEIGHT / 2);
+            for (let x = railLineX; x < GRID_WIDTH; x += 10) {
+                if (x % 5 === 0) {
+                    // 道路との交差点は踏切に
+                    placeAutoBuilding(x, branchRailY, 'crossing');
+                } else {
+                    // それ以外は鉄道
+                    placeAutoBuilding(x, branchRailY, 'rail');
+                }
+            }
+            
+            calculateTaxRevenue();
+            updateGrid();
+        }
+        
+        function optimizeCity() {
+            const currentRevenue = totalTaxRevenue;
+            
+            // デバッグ: 最適化前の建物数をカウント
+            if (iterationCount % 1000 === 0) {
+                const counts = countBuildings();
+                console.log(`Step ${iterationCount}: 住宅=${counts.residential}, 商業=${counts.commercial}, 道路=${counts.road}, 高速=${counts.highway}, 鉄道=${counts.rail}, 踏切=${counts.crossing}`);
+            }
+            
+            // 10%の確率で4x4グリッドを交換
+            if (Math.random() < 0.1) {
+                swapGridRegions(currentRevenue);
+            } else if (Math.random() < 0.3) {
+                // 30%の確率で隣接する2マスを交換
+                swapAdjacentCells(currentRevenue);
+            } else {
+                // 通常の2マス変更
+                changeTwoCells(currentRevenue);
+            }
+        }
+        
+        function countBuildings() {
+            const counts = {
+                residential: 0,
+                commercial: 0,
+                road: 0,
+                highway: 0,
+                rail: 0,
+                crossing: 0
+            };
+            
+            for (let y = 0; y < GRID_HEIGHT; y++) {
+                for (let x = 0; x < GRID_WIDTH; x++) {
+                    const buildingType = grid[y][x];
+                    if (counts.hasOwnProperty(buildingType)) {
+                        counts[buildingType]++;
+                    }
+                }
+            }
+            
+            return counts;
+        }
+        
+        function swapGridRegions(currentRevenue) {
+            // 4x4グリッドを2つ選択してスワップ
+            const region1 = selectRandomRegion();
+            const region2 = selectRandomRegion();
+            
+            // 同じ領域は避ける
+            if (region1.x === region2.x && region1.y === region2.y) {
+                return;
+            }
+            
+            // 現在の状態を保存
+            const savedRegion1 = [];
+            const savedRegion2 = [];
+            
+            for (let dy = 0; dy < 4; dy++) {
+                savedRegion1[dy] = [];
+                savedRegion2[dy] = [];
+                for (let dx = 0; dx < 4; dx++) {
+                    const x1 = region1.x + dx;
+                    const y1 = region1.y + dy;
+                    const x2 = region2.x + dx;
+                    const y2 = region2.y + dy;
+                    
+                    if (x1 < GRID_WIDTH && y1 < GRID_HEIGHT) {
+                        savedRegion1[dy][dx] = grid[y1][x1];
+                    }
+                    if (x2 < GRID_WIDTH && y2 < GRID_HEIGHT) {
+                        savedRegion2[dy][dx] = grid[y2][x2];
+                    }
+                }
+            }
+            
+            // 高速道路の数を追跡
+            let highwayChange = 0;
+            
+            // 領域をスワップ
+            for (let dy = 0; dy < 4; dy++) {
+                for (let dx = 0; dx < 4; dx++) {
+                    const x1 = region1.x + dx;
+                    const y1 = region1.y + dy;
+                    const x2 = region2.x + dx;
+                    const y2 = region2.y + dy;
+                    
+                    if (x1 < GRID_WIDTH && y1 < GRID_HEIGHT && x2 < GRID_WIDTH && y2 < GRID_HEIGHT) {
+                        // 高速道路の変更を追跡
+                        if (savedRegion1[dy][dx] === 'highway') highwayChange--;
+                        if (savedRegion2[dy][dx] === 'highway') highwayChange--;
+                        if (savedRegion2[dy][dx] === 'highway') highwayChange++;
+                        if (savedRegion1[dy][dx] === 'highway') highwayChange++;
+                        
+                        placeAutoBuilding(x1, y1, savedRegion2[dy][dx]);
+                        placeAutoBuilding(x2, y2, savedRegion1[dy][dx]);
+                    }
+                }
+            }
+            
+            calculateTaxRevenue();
+            
+            // シミュレーテッドアニーリング（温度を100から10まで冷却）
+            const temperature = getCurrentTemperature();
+            const revenueDiff = currentRevenue - totalTaxRevenue;
+            const acceptanceProbability = revenueDiff > 0 ? Math.exp(-revenueDiff / temperature) : 1;
+            
+            if (totalTaxRevenue < currentRevenue && Math.random() > acceptanceProbability) {
+                // 元に戻す
+                for (let dy = 0; dy < 4; dy++) {
+                    for (let dx = 0; dx < 4; dx++) {
+                        const x1 = region1.x + dx;
+                        const y1 = region1.y + dy;
+                        const x2 = region2.x + dx;
+                        const y2 = region2.y + dy;
+                        
+                        if (x1 < GRID_WIDTH && y1 < GRID_HEIGHT && x2 < GRID_WIDTH && y2 < GRID_HEIGHT) {
+                            placeAutoBuilding(x1, y1, savedRegion1[dy][dx]);
+                            placeAutoBuilding(x2, y2, savedRegion2[dy][dx]);
+                        }
+                    }
+                }
+                calculateTaxRevenue();
+            } else {
+                // 変更を受け入れる - 視覚的更新
+                for (let dy = 0; dy < 4; dy++) {
+                    for (let dx = 0; dx < 4; dx++) {
+                        const x1 = region1.x + dx;
+                        const y1 = region1.y + dy;
+                        const x2 = region2.x + dx;
+                        const y2 = region2.y + dy;
+                        
+                        if (x1 < GRID_WIDTH && y1 < GRID_HEIGHT) {
+                            updateCellVisual(x1, y1);
+                        }
+                        if (x2 < GRID_WIDTH && y2 < GRID_HEIGHT) {
+                            updateCellVisual(x2, y2);
+                        }
+                    }
+                }
+            }
+        }
+        
+        function selectRandomRegion() {
+            return {
+                x: Math.floor(Math.random() * (GRID_WIDTH - 3)),
+                y: Math.floor(Math.random() * (GRID_HEIGHT - 3))
+            };
+        }
+        
+        function getCurrentTemperature() {
+            const progress = iterationCount / MAX_ITERATIONS;
+            
+            // ラスト10%は温度1（ほぼグリーディー）
+            if (progress >= 0.9) {
+                return 1;
+            }
+            
+            // 最初の90%で100 → 10に線形冷却
+            const adjustedProgress = progress / 0.9;
+            const temperature = INITIAL_TEMPERATURE - (INITIAL_TEMPERATURE - FINAL_TEMPERATURE) * adjustedProgress;
+            return Math.max(temperature, FINAL_TEMPERATURE);
+        }
+        
+        function swapAdjacentCells(currentRevenue) {
+            const adjacentPairs = [];
+            
+            // 隣接するセルのペアを収集
+            for (let y = 0; y < GRID_HEIGHT; y++) {
+                for (let x = 0; x < GRID_WIDTH; x++) {
+                    // 右隣
+                    if (x + 1 < GRID_WIDTH) {
+                        adjacentPairs.push([{x: x, y: y}, {x: x + 1, y: y}]);
+                    }
+                    // 下隣
+                    if (y + 1 < GRID_HEIGHT) {
+                        adjacentPairs.push([{x: x, y: y}, {x: x, y: y + 1}]);
+                    }
+                }
+            }
+            
+            if (adjacentPairs.length === 0) return;
+            
+            // ランダムな隣接ペアを選択
+            const randomPair = adjacentPairs[Math.floor(Math.random() * adjacentPairs.length)];
+            const cell1 = randomPair[0];
+            const cell2 = randomPair[1];
+            
+            const building1 = grid[cell1.y][cell1.x];
+            const building2 = grid[cell2.y][cell2.x];
+            
+            // 交換
+            placeAutoBuilding(cell1.x, cell1.y, building2);
+            placeAutoBuilding(cell2.x, cell2.y, building1);
+            calculateTaxRevenue();
+            
+            // シミュレーテッドアニーリング（温度を100から10まで冷却）
+            const temperature = getCurrentTemperature();
+            const revenueDiff = currentRevenue - totalTaxRevenue;
+            const acceptanceProbability = revenueDiff > 0 ? Math.exp(-revenueDiff / temperature) : 1;
+            
+            if (totalTaxRevenue < currentRevenue && Math.random() > acceptanceProbability) {
+                // 元に戻す
+                placeAutoBuilding(cell1.x, cell1.y, building1);
+                placeAutoBuilding(cell2.x, cell2.y, building2);
+                calculateTaxRevenue();
+            } else {
+                // 変更を受け入れる
+                updateCellVisual(cell1.x, cell1.y);
+                updateCellVisual(cell2.x, cell2.y);
+            }
+        }
+        
+        function changeTwoCells(currentRevenue) {
+            // 2つのセルを選択
+            const cells = selectTwoCells();
+            const cell1 = cells[0];
+            const cell2 = cells[1];
+            
+            const currentBuilding1 = grid[cell1.y][cell1.x];
+            const currentBuilding2 = grid[cell2.y][cell2.x];
+            
+            // 新しい建物タイプを選択（商業施設を優先）
+            let newBuilding1, newBuilding2;
+            
+            // 50%の確率で商業施設に置き換え
+            do {
+                    newBuilding1 = buildingTypes[Math.floor(Math.random() * buildingTypes.length)];
+                } while (newBuilding1 === currentBuilding1);
+            
+            if (Math.random() < 0.5 && currentBuilding2 !== 'commercial') {
+                newBuilding2 = 'commercial';
+            } else {
+                do {
+                    newBuilding2 = buildingTypes[Math.floor(Math.random() * buildingTypes.length)];
+                } while (newBuilding2 === currentBuilding2);
+            }
+            
+            // デバッグ: 変更をログ出力
+            if (iterationCount % 1000 === 0) {
+                console.log(`Changing (${cell1.x},${cell1.y}): ${currentBuilding1} -> ${newBuilding1}`);
+                console.log(`Changing (${cell2.x},${cell2.y}): ${currentBuilding2} -> ${newBuilding2}`);
+            }
+            
+            // 高速道路と踏切の制限チェック
+            let highwayChange = 0;
+            let crossingChange = 0;
+            
+            if (currentBuilding1 === 'highway') highwayChange--;
+            if (currentBuilding2 === 'highway') highwayChange--;
+            if (currentBuilding1 === 'crossing') crossingChange--;
+            if (currentBuilding2 === 'crossing') crossingChange--;
+            
+            if (newBuilding1 === 'highway') highwayChange++;
+            if (newBuilding2 === 'highway') highwayChange++;
+            if (newBuilding1 === 'crossing') crossingChange++;
+            if (newBuilding2 === 'crossing') crossingChange++;
+            
+            if (highwayCount + highwayChange > MAX_HIGHWAYS) {
+                return;
+            }
+            
+            if (crossingCount + crossingChange > MAX_CROSSINGS) {
+                return;
+            }
+            
+            // 変更を適用
+            placeAutoBuilding(cell1.x, cell1.y, newBuilding1);
+            placeAutoBuilding(cell2.x, cell2.y, newBuilding2);
+            calculateTaxRevenue();
+            
+            // シミュレーテッドアニーリング（温度を100から10まで冷却）
+            const temperature = getCurrentTemperature();
+            const revenueDiff = currentRevenue - totalTaxRevenue;
+            const acceptanceProbability = revenueDiff > 0 ? Math.exp(-revenueDiff / temperature) : 1;
+            
+            if (totalTaxRevenue < currentRevenue && Math.random() > acceptanceProbability) {
+                // 元に戻す
+                if (iterationCount % 1000 === 0) {
+                    console.log(`Rejected: revenue ${currentRevenue} -> ${totalTaxRevenue}, probability ${acceptanceProbability.toFixed(3)}`);
+                }
+                placeAutoBuilding(cell1.x, cell1.y, currentBuilding1);
+                placeAutoBuilding(cell2.x, cell2.y, currentBuilding2);
+                calculateTaxRevenue();
+            } else {
+                // 変更を受け入れる
+                if (iterationCount % 1000 === 0) {
+                    console.log(`Accepted: revenue ${currentRevenue} -> ${totalTaxRevenue}, probability ${acceptanceProbability.toFixed(3)}`);
+                }
+                updateCellVisual(cell1.x, cell1.y);
+                updateCellVisual(cell2.x, cell2.y);
+            }
+        }
+        
+        function selectTwoCells() {
+            // 空セル（null）を優先的に選択するロジック
+            const emptyCells = [];
+            const nonEmptyCells = [];
+
+            for (let y = 0; y < GRID_HEIGHT; y++) {
+                for (let x = 0; x < GRID_WIDTH; x++) {
+                    if (grid[y][x] === null) {
+                        emptyCells.push({x, y});
+                    } else {
+                        nonEmptyCells.push({x, y});
+                    }
+                }
+            }
+
+            const cells = [];
+
+            // 空セルがある場合は80%の確率で空セルを選択
+            if (emptyCells.length > 0 && Math.random() < 0.8) {
+                cells.push(emptyCells[Math.floor(Math.random() * emptyCells.length)]);
+            } else if (nonEmptyCells.length > 0) {
+                cells.push(nonEmptyCells[Math.floor(Math.random() * nonEmptyCells.length)]);
+            } else {
+                // フォールバック：完全ランダム
+                cells.push({
+                    x: Math.floor(Math.random() * GRID_WIDTH),
+                    y: Math.floor(Math.random() * GRID_HEIGHT)
+                });
+            }
+
+            // 2つ目のセルを選択（1つ目と同じでないもの）
+            let cell2;
+            do {
+                if (emptyCells.length > 1 && Math.random() < 0.8) {
+                    cell2 = emptyCells[Math.floor(Math.random() * emptyCells.length)];
+                } else if (nonEmptyCells.length > 0) {
+                    cell2 = nonEmptyCells[Math.floor(Math.random() * nonEmptyCells.length)];
+                } else {
+                    cell2 = {
+                        x: Math.floor(Math.random() * GRID_WIDTH),
+                        y: Math.floor(Math.random() * GRID_HEIGHT)
+                    };
+                }
+            } while (cell2.x === cells[0].x && cell2.y === cells[0].y);
+            cells.push(cell2);
+
+            return cells;
+        } 
+
+        function placeAutoBuilding(x, y, buildingType) {
+            if (grid[y][x] === 'highway') {
+                highwayCount--;
+            }
+            if (grid[y][x] === 'crossing') {
+                crossingCount--;
+            }
+            
+            grid[y][x] = buildingType;
+            
+            if (buildingType === 'highway') {
+                highwayCount++;
+            }
+            if (buildingType === 'crossing') {
+                crossingCount++;
+            }
+        }
+        
+        function clearGrid() {
+            for (let y = 0; y < GRID_HEIGHT; y++) {
+                for (let x = 0; x < GRID_WIDTH; x++) {
+                    grid[y][x] = null;
+                }
+            }
+            highwayCount = 0;
+            crossingCount = 0;
+        }
+        
+        function updateGrid() {
+            const gameGrid = document.getElementById('gameGrid');
+            const cells = gameGrid.children;
+            
+            for (let y = 0; y < GRID_HEIGHT; y++) {
+                for (let x = 0; x < GRID_WIDTH; x++) {
+                    const index = y * GRID_WIDTH + x;
+                    const cell = cells[index];
+                    const buildingType = grid[y][x];
+                    
+                    cell.className = 'cell';
+                    if (buildingType) {
+                        cell.className += ` ${buildingType}`;
+                        const symbols = {
+                            residential: '🏠',
+                            commercial: '🏢',
+                            road: '—',
+                            rail: '═',
+                            highway: '━',
+                            crossing: '╬'
+                        };
+                        cell.textContent = symbols[buildingType] || '';
+                    } else {
+                        cell.textContent = '';
+                    }
+                }
+            }
+        }
+        
+        function updateCellVisual(x, y) {
+            const index = y * GRID_WIDTH + x;
+            const gameGrid = document.getElementById('gameGrid');
+            const cell = gameGrid.children[index];
+            const buildingType = grid[y][x];
+            
+            cell.className = 'cell';
+            if (buildingType) {
+                cell.className += ` ${buildingType}`;
+                const symbols = {
+                    residential: '🏠',
+                    commercial: '🏢',
+                    road: '—',
+                    rail: '═',
+                    highway: '━',
+                    crossing: '╬'
+                };
+                cell.textContent = symbols[buildingType] || '';
+            } else {
+                cell.textContent = '';
+            }
+        }
+
+        function drawBuildingChart() {
+            const canvas = document.getElementById('buildingChart');
+            if (!canvas) return;
+            
+            const ctx = canvas.getContext('2d');
+            const width = canvas.width;
+            const height = canvas.height;
+            const padding = 60;
+            const chartWidth = width - padding * 2;
+            const chartHeight = height - padding * 2;
+            
+            // キャンバスをクリア
+            ctx.clearRect(0, 0, width, height);
+            
+            if (buildingHistory.length < 1) return;
+            
+            // 最大値を取得
+            const buildingTypes = ['residential', 'commercial', 'road', 'highway', 'rail', 'crossing'];
+            const colors = {
+                residential: '#f39c12',
+                commercial: '#9b59b6',
+                road: '#7f8c8d',
+                highway: '#2c3e50',
+                rail: '#34495e',
+                crossing: '#e67e22'
+            };
+            
+            let maxCount = 0;
+            for (const history of buildingHistory) {
+                for (const type of buildingTypes) {
+                    maxCount = Math.max(maxCount, history[type] || 0);
+                }
+            }
+            
+            // 目盛りを描画
+            ctx.strokeStyle = '#7f8c8d';
+            ctx.lineWidth = 1;
+            ctx.font = '12px Arial';
+            ctx.fillStyle = '#bdc3c7';
+            
+            // Y軸の目盛り
+            const ySteps = 5;
+            for (let i = 0; i <= ySteps; i++) {
+                const y = padding + (i / ySteps) * chartHeight;
+                const value = maxCount - (i / ySteps) * maxCount;
+                
+                ctx.beginPath();
+                ctx.moveTo(padding, y);
+                ctx.lineTo(padding + chartWidth, y);
+                ctx.stroke();
+                
+                ctx.fillText(Math.round(value).toString(), 5, y + 4);
+            }
+            
+            // X軸の目盛り
+            const xSteps = Math.min(10, Math.max(1, Math.floor(buildingHistory.length / 100)));
+            const stepSize = Math.max(1, Math.floor(buildingHistory.length / xSteps));
+            for (let i = 0; i <= xSteps; i++) {
+                const step = i * stepSize;
+                if (step >= buildingHistory.length) break;
+                
+                const x = padding + (step / Math.max(1, buildingHistory.length - 1)) * chartWidth;
+                
+                ctx.beginPath();
+                ctx.moveTo(x, padding);
+                ctx.lineTo(x, padding + chartHeight);
+                ctx.stroke();
+                
+                ctx.fillText(step.toString(), x - 10, height - 5);
+            }
+            
+            // 各建物タイプのラインを描画
+            for (const buildingType of buildingTypes) {
+                if (buildingHistory.length > 1) {
+                    ctx.strokeStyle = colors[buildingType];
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    
+                    for (let i = 0; i < buildingHistory.length; i++) {
+                        const count = buildingHistory[i][buildingType] || 0;
+                        const x = padding + (i / Math.max(1, buildingHistory.length - 1)) * chartWidth;
+                        const y = padding + chartHeight - (count / maxCount) * chartHeight;
+                        
+                        if (i === 0) {
+                            ctx.moveTo(x, y);
+                        } else {
+                            ctx.lineTo(x, y);
+                        }
+                    }
+                    
+                    ctx.stroke();
+                }
+            }
+            
+            // 凡例を描画
+            const legendX = width - 150;
+            let legendY = padding + 20;
+            ctx.font = '12px Arial';
+            
+            const buildingNames = {
+                residential: '住宅',
+                commercial: '商業',
+                road: '道路',
+                highway: '高速',
+                rail: '鉄道',
+                crossing: '踏切'
+            };
+            
+            for (const buildingType of buildingTypes) {
+                ctx.fillStyle = colors[buildingType];
+                ctx.fillRect(legendX - 15, legendY - 8, 10, 10);
+                
+                ctx.fillStyle = '#ecf0f1';
+                ctx.fillText(buildingNames[buildingType], legendX, legendY);
+                
+                legendY += 20;
+            }
+            
+            // 軸ラベル
+            ctx.fillStyle = '#ecf0f1';
+            ctx.font = '14px Arial';
+            ctx.fillText('ステップ数', width / 2 - 30, height - 20);
+            
+            ctx.save();
+            ctx.translate(20, height / 2);
+            ctx.rotate(-Math.PI / 2);
+            ctx.fillText('建物数', -30, 0);
+            ctx.restore();
+        }
+
+        initializeGrid();
+        calculateTaxRevenue();
+        
+        // 初期グラフを描画
+        setTimeout(() => {
+            drawTaxChart();
+            drawBuildingChart();
+        }, 100);
+        
+        // 初期グラフを描画
+        setTimeout(() => {
+            drawTaxChart();
+        }, 100);
+    </script>
+</body>
+</html>
